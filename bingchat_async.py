@@ -37,7 +37,7 @@ def get_webpage_text(page, link):
     page.goto(link, timeout=0)
 
     # Get webpage text
-    response = requests.get(link)
+    response = requests.get(link, verify=False)
     soup = BeautifulSoup(response.text, 'html.parser')
 
     # Extract all text within the body tag
@@ -94,6 +94,7 @@ def main():
         if len(enc.encode("\n".join(textList))) < 6000:
             textList = ["\n".join(textList)]
 
+        print('asking to GPT model ...')
         summary = get_summary(comp, textList)
         prompt = f"아래는 {comp}에 대한 최신 정보입니다. 정보를 바탕으로 이 기업의 주식에 어떤 영향을 줄지 예측해주세요. \n\nInfo: \n{summary} \n\n 예측:"
         response = openai_api.chatgpt(prompt)
@@ -116,10 +117,16 @@ async def gpt_async(comp, text_list) -> str:
     tasks = []
     for t in text_list:
         prompt = f"아래는 {comp}에 대한 최신 정보입니다. 정보의 내용에 대해 긍정 부정을 판단하고, 아래의 요약문을 작성해주세요. \n\nInfo: \n{t} \n\n 요약문:"
-        tasks.append(asyncio.get_event_loop().create_task(openai_api.chatgpt(prompt)))
+        tasks.append(asyncio.get_event_loop().create_task(ask_to_gpt(prompt)))
     summarize_result = await asyncio.gather(*tasks)
 
     return ''.join(summarize_result)
+
+
+async def ask_to_gpt(prompt):
+    task = asyncio.get_event_loop().run_in_executor(None, openai_api.chatgpt, prompt)
+    return await task
+
 
 
 if __name__ == "__main__":
